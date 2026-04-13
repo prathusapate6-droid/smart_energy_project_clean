@@ -85,7 +85,9 @@ def predict_future() -> float:
             sequence_data.append(scaled_arr)
 
         X_input = np.array([sequence_data])
-        predicted_scaled = model.predict(X_input, verbose=0)
+        # Use direct callable model() instead of model.predict()
+        # model.predict() causes thread deadlocks in gunicorn background worker threads
+        predicted_scaled = model(X_input, training=False).numpy()
 
         dummy = np.zeros((1, 4))
         dummy[0, 3] = predicted_scaled[0][0]
