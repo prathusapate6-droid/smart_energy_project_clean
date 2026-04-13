@@ -4,15 +4,15 @@
 #include <PubSubClient.h>
 
 // ══════════════════════════════════════════════════════════
-//  AI Smart Grid — ESP32 Firmware v6 (MQTT + HiveMQ Cloud) 1
+//  AI Smart Grid — ESP32 Firmware v6 (MQTT + HiveMQ Cloud) 2
 //  Prathamesh Sapate
 //  Sends sensor data via MQTT to HiveMQ Cloud broker
 //  Server (Flask on Render) subscribes to receive data
 // ══════════════════════════════════════════════════════════
 
 // ────── WiFi Credentials ──────
-const char *ssid = "Project";
-const char *password = "1234567890";
+const char *ssid = "Home Network";
+const char *password = "asdfghjkl";
 
 // ────── HiveMQ Cloud MQTT Credentials ──────
 #define MQTT_BROKER "e5c6d611df63436992755767b6967071.s1.eu.hivemq.cloud"

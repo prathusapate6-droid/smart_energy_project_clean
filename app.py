@@ -455,10 +455,13 @@ def _process_sensor_json(data: dict) -> None:
 
 
 def _start_mqtt() -> None:
-    """Connect to HiveMQ Cloud and subscribe to ESP32 sensor topic."""
+    """Connect to HiveMQ Cloud and subscribe to ESP32 sensor topic.
+    Uses loop_forever() for maximum reliability — never exits, auto-reconnects."""
     if not MQTT_AVAILABLE:
         print("[MQTT] paho-mqtt not available, skipping.")
         return
+
+    import time
 
     broker = os.environ.get('MQTT_BROKER', 'e5c6d611df63436992755767b6967071.s1.eu.hivemq.cloud')
     port = int(os.environ.get('MQTT_PORT', '8883'))
@@ -469,7 +472,6 @@ def _start_mqtt() -> None:
     def on_connect(client, userdata, flags, rc, properties=None):
         if rc == 0:
             print(f"[MQTT] ✅ Connected to HiveMQ Cloud!")
-            # Re-subscribe on EVERY connect (important after reconnect!)
             client.subscribe(topic, qos=1)
             print(f"[MQTT] Subscribed to topic: {topic} (QoS 1)")
         else:
@@ -478,64 +480,53 @@ def _start_mqtt() -> None:
     def on_message(client, userdata, msg):
         try:
             payload = json.loads(msg.payload.decode())
-            print(f"[MQTT] Received on {msg.topic}: {payload}")
+            print(f"[MQTT] Received: {payload}")
             _process_sensor_json(payload)
         except Exception as e:
             print(f"[MQTT] Error parsing message: {e}")
 
     def on_disconnect(client, userdata, rc, properties=None):
-        print(f"[MQTT] ⚠️ Disconnected (rc={rc}). Auto-reconnecting...")
+        print(f"[MQTT] ⚠️ Disconnected (rc={rc}). loop_forever will auto-reconnect...")
 
-    try:
-        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-        client.username_pw_set(username, password)
-        client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
+    while True:  # Infinite retry — NEVER give up
+        try:
+            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            client.username_pw_set(username, password)
+            client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
+            client.reconnect_delay_set(min_delay=1, max_delay=30)
 
-        # Enable auto-reconnect with backoff (1s min, 30s max)
-        client.reconnect_delay_set(min_delay=1, max_delay=30)
+            client.on_connect = on_connect
+            client.on_message = on_message
+            client.on_disconnect = on_disconnect
 
-        client.on_connect = on_connect
-        client.on_message = on_message
-        client.on_disconnect = on_disconnect
+            print(f"[MQTT] Connecting to {broker}:{port}...")
+            client.connect(broker, port, keepalive=60)
 
-        client.connect(broker, port, keepalive=60)
-        client.loop_start()  # Non-blocking background loop with auto-reconnect
-        print(f"[MQTT] Connecting to {broker}:{port}...")
+            # loop_forever() blocks this thread permanently and handles
+            # reconnection automatically. It only returns on disconnect().
+            client.loop_forever(retry_first_connection=True)
 
-        # Keep this thread alive to maintain the MQTT client reference
-        import time
-        while True:
-            time.sleep(30)
-            if not client.is_connected():
-                print("[MQTT] ⚠️ Connection lost, attempting reconnect...")
-                try:
-                    client.reconnect()
-                except Exception as e:
-                    print(f"[MQTT] Reconnect failed: {e}")
-
-    except Exception as e:
-        print(f"[MQTT] Failed to start: {e}")
-        # Retry after 10 seconds
-        import time
-        time.sleep(10)
-        _start_mqtt()
+        except Exception as e:
+            print(f"[MQTT] Connection error: {e}. Retrying in 5s...")
+            time.sleep(5)
 
 
-# ── Lazy MQTT start (works with gunicorn fork) ───────────────────────────────
+# ── Start MQTT ────────────────────────────────────────────────────────────────
 _mqtt_started = False
 
 @app.before_request
 def _ensure_mqtt():
-    """Start MQTT on first HTTP request (inside gunicorn worker process)."""
+    """Start MQTT on first HTTP request (inside gunicorn worker)."""
     global _mqtt_started
     if not _mqtt_started:
         _mqtt_started = True
-        threading.Thread(target=_start_mqtt, daemon=True).start()
+        t = threading.Thread(target=_start_mqtt, daemon=True)
+        t.start()
+        print(f"[MQTT] Thread started (id={t.ident})")
 # ──────────────────────────────────────────────────────────────────────────────
 
 
 if __name__ == '__main__':
-    # Local dev mode: start MQTT immediately (no gunicorn fork issue)
     threading.Thread(target=_start_mqtt, daemon=True).start()
     port = int(os.environ.get('PORT', 5050))
     print("=" * 50)

@@ -3,7 +3,7 @@ services:
     name: smart-energy-ai
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --workers 1 --threads 2 --bind 0.0.0.0:$PORT app:app
+    startCommand: gunicorn --config gunicorn.conf.py --bind 0.0.0.0:$PORT app:app
     envVars:
       - key: MQTT_BROKER
         value: e5c6d611df63436992755767b6967071.s1.eu.hivemq.cloud
