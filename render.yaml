@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: smart-energy-ai
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --workers 1 --threads 2 --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: MQTT_BROKER
+        value: e5c6d611df63436992755767b6967071.s1.eu.hivemq.cloud
+      - key: MQTT_PORT
+        value: "8883"
+      - key: MQTT_USERNAME
+        value: smartwater
+      - key: MQTT_PASSWORD
+        value: SmartWater2026!
+      - key: MQTT_TOPIC
+        value: smartgrid/sensor
+      - key: PYTHON_VERSION
+        value: "3.11.11"

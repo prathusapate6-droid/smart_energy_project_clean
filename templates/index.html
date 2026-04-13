@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Energy AI Dashboard</title>
+    <meta name="description"
+        content="Real-time AI-powered smart energy monitoring dashboard with LSTM load forecasting.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg: #f0f4f8;
+            --card-bg: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+            --blue: #3b82f6;
+            --blue-light: #eff6ff;
+            --green: #10b981;
+            --green-light: #ecfdf5;
+            --amber: #f59e0b;
+            --amber-light: #fffbeb;
+            --purple: #8b5cf6;
+            --purple-light: #f5f3ff;
+            --red: #ef4444;
+            --red-light: #fef2f2;
+            --orange: #f97316;
+            --orange-light: #fff7ed;
+            --cyan: #06b6d4;
+            --cyan-light: #ecfeff;
+            --sidebar-width: 260px;
+            --radius: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(-45deg, #f8fafc, #eff6ff, #f1f5f9, #eef2ff);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        @keyframes gradientBG {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* ═══ SIDEBAR ═══ */
+        .sidebar {
+            width: var(--sidebar-width);
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1e3a5f 0%, #1a2744 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 1.25rem 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-logo {
+            padding: 0 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 0.75rem;
+        }
+
+        .sidebar-logo h2 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-logo .sub {
+            font-size: 0.7rem;
+            font-weight: 400;
+            opacity: 0.55;
+            margin-top: 4px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .nav-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.35);
+            padding: 0.75rem 0.75rem 0.4rem;
+            font-weight: 600;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0.7rem 0.85rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: rgba(255, 255, 255, 0.65);
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+        }
+
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.25);
+            color: white;
+            font-weight: 600;
+        }
+
+        .nav-item i {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2;
+        }
+
+        .sidebar-footer {
+            padding: 1rem 1.25rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .sidebar-footer .status-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+
+        .sidebar-footer .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+            box-shadow: 0 0 8px #4ade80;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* ═══ MAIN ═══ */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            min-height: 100vh;
+        }
+
+        .top-bar {
+            background: var(--card-bg);
+            padding: 0.9rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .top-bar h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .top-bar .right-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .top-bar .timestamp {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        .badge-success {
+            background: var(--green-light);
+            color: var(--green);
+        }
+
+        .badge-warning {
+            background: var(--amber-light);
+            color: var(--amber);
+        }
+
+        .badge-danger {
+            background: var(--red-light);
+            color: var(--red);
+        }
+
+        .badge-muted {
+            background: #f1f5f9;
+            color: var(--text-muted);
+        }
+
+        .page-content {
+            padding: 1.5rem 2rem;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* ═══ METRICS ═══ */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .metrics-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .metric-card .icon-circle {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .metric-card .icon-circle i {
+            width: 22px;
+            height: 22px;
+            stroke-width: 2;
+        }
+
+        .metric-card .label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .metric-card .unit {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: var(--text-muted);
+            margin-left: 2px;
+        }
+
+        .card-voltage .icon-circle {
+            background: var(--blue-light);
+            color: var(--blue);
+        }
+
+        .card-voltage .value {
+            color: var(--blue);
+        }
+
+        .card-current .icon-circle {
+            background: var(--green-light);
+            color: var(--green);
+        }
+
+        .card-current .value {
+            color: var(--green);
+        }
+
+        .card-temp .icon-circle {
+            background: var(--amber-light);
+            color: var(--amber);
+        }
+
+        .card-temp .value {
+            color: var(--amber);
+        }
+
+        .card-humidity .icon-circle {
+            background: var(--purple-light);
+            color: var(--purple);
+        }
+
+        .card-humidity .value {
+            color: var(--purple);
+        }
+
+        .card-prediction .icon-circle {
+            background: var(--red-light);
+            color: var(--red);
+        }
+
+        .card-prediction .value {
+            color: var(--red);
+        }
+
+        .card-power .icon-circle {
+            background: var(--orange-light);
+            color: var(--orange);
+        }
+
+        .card-power .value {
+            color: var(--orange);
+        }
+
+        /* ═══ DEMAND RESPONSE PAGE ═══ */
+        .dr-grid {
+            margin: 1rem 0;
+            background: #f1f5f9;
+            border-radius: 10px;
+            height: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .threshold-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease, background 0.3s;
+        }
+
+        .threshold-mark {
+            position: absolute;
+            top: -6px;
+            bottom: -6px;
+            width: 3px;
+            background: #1e293b;
+            border-radius: 2px;
+        }
+
+        .override-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            cursor: pointer;
+        }
+
+        .toggle-switch input {
+            display: none;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 13px;
+            background: #cbd5e1;
+            transition: background 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch input:checked+.toggle-slider {
+            background: var(--blue);
+        }
+
+        .toggle-switch input:checked+.toggle-slider::before {
+            transform: translateX(22px);
+        }
+
+        .alert-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        .alert-table th {
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            padding: 0.5rem 0.75rem;
+            border-bottom: 2px solid var(--border);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .alert-table td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid #f1f5f9;
+            color: var(--text-primary);
+        }
+
+        .alert-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        .severity-badge {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 8px;
+            text-transform: uppercase;
+        }
+
+        .severity-warning {
+            background: var(--amber-light);
+            color: var(--amber);
+        }
+
+        .severity-notice {
+            background: var(--blue-light);
+            color: var(--blue);
+        }
+
+        .severity-success {
+            background: var(--green-light);
+            color: var(--green);
+        }
+
+        .severity-info {
+            background: var(--purple-light);
+            color: var(--purple);
+        }
+
+        .dr-card-full {
+            grid-column: 1 / -1;
+        }
+
+        .alert-scroll {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        /* ═══ CHARTS ═══ */
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title i {
+            width: 20px;
+            height: 20px;
+        }
+
+        .live-charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .live-charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .chart-card h3 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chart-card h3 i {
+            width: 16px;
+            height: 16px;
+        }
+
+        .chart-card canvas {
+            width: 100% !important;
+            height: 175px !important;
+        }
+
+        /* ═══ HISTORY ═══ */
+        .history-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .history-header h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .history-header h3 i {
+            width: 20px;
+            height: 20px;
+        }
+
+        .range-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 3px;
+        }
+
+        .range-tab {
+            padding: 6px 14px;
+            border: none;
+            background: none;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+        }
+
+        .range-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .range-tab.active {
+            background: var(--blue);
+            color: white;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+        }
+
+        .history-canvas-wrap {
+            position: relative;
+            height: 500px;
+        }
+
+        .history-canvas-wrap canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .hist-individual-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-top: 1.25rem;
+        }
+
+        @media (max-width: 768px) {
+            .hist-individual-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .hist-ind-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .hist-ind-card h4 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hist-ind-card h4 i {
+            width: 16px;
+            height: 16px;
+        }
+
+        .hist-ind-chart {
+            position: relative;
+            height: 280px;
+        }
+
+        .hist-ind-chart canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .hist-stats-row {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .hist-stat-card {
+            flex: 1;
+            min-width: 140px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .hist-stat-card .hs-val {
+            font-size: 1.4rem;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .hist-stat-card .hs-label {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        .retention-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--blue-light);
+            color: var(--blue);
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+
+        /* ═══ AI INSIGHTS ═══ */
+        .ai-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .ai-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .ai-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .ai-card h3 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ai-card h3 i {
+            width: 20px;
+            height: 20px;
+        }
+
+        .ai-card-full {
+            grid-column: 1 / -1;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-row .key {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .info-row .val {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .arch-layer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.65rem 0.9rem;
+            margin-bottom: 0.5rem;
+            background: #f8fafc;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .arch-layer .layer-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: white;
+        }
+
+        .arch-layer .layer-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .arch-layer .layer-detail {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        .pipeline-flow {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 1.5rem 0;
+        }
+
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            min-width: 100px;
+            opacity: 0;
+            transform: translateY(25px);
+            animation: pipeSlideIn 0.6s ease forwards;
+        }
+
+        .pipeline-step:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .pipeline-step:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .pipeline-step:nth-child(5) {
+            animation-delay: 0.5s;
+        }
+
+        .pipeline-step:nth-child(7) {
+            animation-delay: 0.7s;
+        }
+
+        .pipeline-step:nth-child(9) {
+            animation-delay: 0.9s;
+        }
+
+        @keyframes pipeSlideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .pipeline-step .step-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.6rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+            animation: iconPulse 3s ease-in-out infinite;
+        }
+
+        .pipeline-step .step-icon:hover {
+            transform: scale(1.15);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        @keyframes iconPulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.06);
+            }
+        }
+
+        .pipeline-step .step-icon i {
+            width: 26px;
+            height: 26px;
+            stroke-width: 2;
+        }
+
+        .pipeline-step .step-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .pipeline-arrow {
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            animation: arrowFade 0.4s ease forwards;
+        }
+
+        .pipeline-arrow:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .pipeline-arrow:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .pipeline-arrow:nth-child(6) {
+            animation-delay: 0.6s;
+        }
+
+        .pipeline-arrow:nth-child(8) {
+            animation-delay: 0.8s;
+        }
+
+        @keyframes arrowFade {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .pipeline-arrow i {
+            width: 22px;
+            height: 22px;
+            animation: arrowBounce 2s ease-in-out infinite;
+        }
+
+        @keyframes arrowBounce {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            50% {
+                transform: translateX(4px);
+            }
+        }
+
+
+        .stat-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 500px) {
+            .stat-mini-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stat-mini {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 12px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+        }
+
+        .stat-mini .num {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .stat-mini .lbl {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        /* Prediction chart in AI insights */
+        .ai-chart-wrap {
+            height: 220px;
+            margin-top: 0.5rem;
+        }
+
+        .ai-chart-wrap canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <h2><i data-lucide="zap" style="width:20px;height:20px;"></i> EnergyAI</h2>
+            <div class="sub">Smart Monitoring Console</div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-label">Main</div>
+            <button class="nav-item active" data-page="dashboard"><i data-lucide="layout-dashboard"></i>
+                Dashboard</button>
+            <button class="nav-item" data-page="ai-insights"><i data-lucide="brain"></i> AI Insights</button>
+            <div class="nav-label" style="margin-top:1rem;">Control</div>
+            <button class="nav-item" data-page="energy-analytics"><i data-lucide="line-chart"></i> Energy
+                Analytics</button>
+            <div class="nav-label" style="margin-top:1rem;">Data</div>
+            <button class="nav-item" data-page="history"><i data-lucide="chart-line"></i> Historical Data</button>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="status-row">
+                <div class="dot" id="sidebar-dot"></div>
+                <span id="sidebar-status" style="font-size:0.8rem;opacity:0.8;">Connecting...</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ═══ MAIN ═══ -->
+    <div class="main-content">
+        <div class="top-bar">
+            <h1 id="page-title"><i data-lucide="layout-dashboard" style="width:20px;height:20px;"></i> Dashboard</h1>
+            <div class="right-info">
+                <span class="badge badge-muted" id="status-badge">Initializing</span>
+                <span class="timestamp" id="last-update">--:--:--</span>
+            </div>
+        </div>
+
+        <div class="page-content">
+
+            <!-- ═══ DASHBOARD ═══ -->
+            <div class="page active" id="page-dashboard">
+                <div class="metrics-grid">
+                    <div class="metric-card card-voltage">
+                        <div class="icon-circle"><i data-lucide="zap"></i></div>
+                        <div class="label">Voltage</div>
+                        <div class="value" id="val-voltage">--<span class="unit">V</span></div>
+                    </div>
+                    <div class="metric-card card-current">
+                        <div class="icon-circle"><i data-lucide="plug"></i></div>
+                        <div class="label">Current</div>
+                        <div class="value" id="val-current">--<span class="unit">A</span></div>
+                    </div>
+                    <div class="metric-card card-temp">
+                        <div class="icon-circle"><i data-lucide="thermometer"></i></div>
+                        <div class="label">Temperature</div>
+                        <div class="value" id="val-temp">--<span class="unit">°C</span></div>
+                    </div>
+                    <div class="metric-card card-humidity">
+                        <div class="icon-circle"><i data-lucide="droplets"></i></div>
+                        <div class="label">Humidity</div>
+                        <div class="value" id="val-humidity">--<span class="unit">%</span></div>
+                    </div>
+                    <div class="metric-card card-prediction">
+                        <div class="icon-circle"><i data-lucide="brain-circuit"></i></div>
+                        <div class="label">AI Predicted</div>
+                        <div class="value" id="val-predicted">--<span class="unit">A</span></div>
+                    </div>
+                    <div class="metric-card card-power">
+                        <div class="icon-circle"><i data-lucide="gauge"></i></div>
+                        <div class="label">Power</div>
+                        <div class="value" id="val-power">--<span class="unit">W</span></div>
+                    </div>
+                    <!-- Predicted kWh card -->
+                    <div class="metric-card"
+                        style="border-color:rgba(99,102,241,0.3);background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.05));">
+                        <div class="icon-circle" style="background:rgba(99,102,241,0.15);color:#818cf8;"><i
+                                data-lucide="zap"></i></div>
+                        <div class="label" style="color:#a5b4fc;">Predicted kWh/hr</div>
+                        <div class="value" id="dash-fc-kwh" style="color:#818cf8;">--<span class="unit">kWh</span></div>
+                        <div style="font-size:0.65rem;color:#64748b;margin-top:2px;">AI LSTM forecast</div>
+                    </div>
+                    <!-- Units card -->
+                    <div class="metric-card"
+                        style="border-color:rgba(245,158,11,0.3);background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(251,191,36,0.05));">
+                        <div class="icon-circle" style="background:rgba(245,158,11,0.15);color:#fbbf24;"><i
+                                data-lucide="package"></i></div>
+                        <div class="label" style="color:#fde68a;">Units / Day (est.)</div>
+                        <div class="value" id="dash-fc-units" style="color:#fbbf24;">--<span class="unit">Units</span>
+                        </div>
+                        <div style="font-size:0.65rem;color:#64748b;margin-top:2px;">1 Unit = 1 kWh</div>
+                    </div>
+                    <!-- Bill card -->
+                    <div class="metric-card"
+                        style="border-color:rgba(16,185,129,0.3);background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(52,211,153,0.05));">
+                        <div class="icon-circle" style="background:rgba(16,185,129,0.15);color:#34d399;"><i
+                                data-lucide="indian-rupee"></i></div>
+                        <div class="label" style="color:#6ee7b7;">Est. Bill / Day</div>
+                        <div class="value" id="dash-fc-bill" style="color:#34d399;">₹&nbsp;--</div>
+                        <div style="font-size:0.65rem;color:#64748b;margin-top:2px;">@ ₹8/unit tariff</div>
+                    </div>
+
+                </div>
+
+                <!-- ── AI Forecast Strip ───────────────────────────────── -->
+                <div
+                    style="display:flex;align-items:center;gap:1rem;padding:0.85rem 1.25rem;background:linear-gradient(90deg,rgba(99,102,241,0.1),rgba(139,92,246,0.07));border:1px solid rgba(99,102,241,0.2);border-radius:14px;margin-bottom:1.5rem;flex-wrap:wrap;">
+                    <div
+                        style="display:flex;align-items:center;gap:8px;font-size:0.8rem;font-weight:700;color:#a5b4fc;">
+                        <i data-lucide="brain-circuit" style="width:18px;height:18px;color:#818cf8;"></i>
+                        AI Smart Forecast
+                    </div>
+                    <div style="width:1px;height:24px;background:rgba(148,163,184,0.2);"></div>
+                    <div style="flex:1;display:flex;gap:1.5rem;flex-wrap:wrap;">
+                        <div style="text-align:center;">
+                            <div style="font-size:0.6rem;color:#64748b;text-transform:uppercase;font-weight:600;">Next
+                                1h</div>
+                            <div style="font-size:0.85rem;font-weight:700;color:#60a5fa;"><span id="dash-sf-1h">--
+                                    kWh</span></div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:0.6rem;color:#64748b;text-transform:uppercase;font-weight:600;">Next
+                                24h</div>
+                            <div style="font-size:0.85rem;font-weight:700;color:#34d399;"><span id="dash-sf-24h">--
+                                    kWh</span></div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:0.6rem;color:#64748b;text-transform:uppercase;font-weight:600;">30-Day
+                                Bill</div>
+                            <div style="font-size:0.85rem;font-weight:700;color:#fbbf24;"><span id="dash-sf-30d-bill">₹
+                                    --</span></div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:0.6rem;color:#64748b;text-transform:uppercase;font-weight:600;">
+                                Condition</div>
+                            <div style="font-size:0.85rem;font-weight:700;color:#a78bfa;"><span
+                                    id="dash-sf-cond">--</span></div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.65rem;color:#475569;">Updates every 15s</div>
+                </div>
+
+                <div class="section-title"><i data-lucide="activity"></i> Live Sensor Feed</div>
+                <div class="live-charts-grid">
+                    <div class="chart-card">
+                        <h3><i data-lucide="zap" style="color:var(--blue);"></i> Voltage (V)</h3><canvas
+                            id="chart-voltage"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i data-lucide="git-compare" style="color:var(--green);"></i> Current — Actual vs Predicted
+                        </h3><canvas id="chart-current"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i data-lucide="thermometer" style="color:var(--amber);"></i> Temperature (°C)</h3><canvas
+                            id="chart-temp"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i data-lucide="droplets" style="color:var(--purple);"></i> Humidity (%)</h3><canvas
+                            id="chart-humidity"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ AI INSIGHTS ═══ -->
+            <div class="page" id="page-ai-insights">
+                <!-- Pipeline -->
+                <div style="margin-bottom:1.25rem;padding:0.5rem 1rem 0.5rem;">
+                    <h3 style="font-size:0.9rem;font-weight:700;display:flex;align-items:center;gap:8px;"><i
+                            data-lucide="workflow" style="width:20px;height:20px;"></i> How the AI System Works</h3>
+                    <div class="pipeline-flow">
+                        <div class="pipeline-step">
+                            <div class="step-icon" style="background:var(--green-light);color:var(--green);"><i
+                                    data-lucide="cpu"></i></div>
+                            <div class="step-label">ESP32<br>Sensors</div>
+                        </div>
+                        <div class="pipeline-arrow"><i data-lucide="arrow-right"></i></div>
+                        <div class="pipeline-step">
+                            <div class="step-icon" style="background:var(--blue-light);color:var(--blue);"><i
+                                    data-lucide="server"></i></div>
+                            <div class="step-label">Flask API<br>Receives</div>
+                        </div>
+                        <div class="pipeline-arrow"><i data-lucide="arrow-right"></i></div>
+                        <div class="pipeline-step">
+                            <div class="step-icon" style="background:var(--purple-light);color:var(--purple);"><i
+                                    data-lucide="database"></i></div>
+                            <div class="step-label">SQLite DB<br>Stores (15d)</div>
+                        </div>
+                        <div class="pipeline-arrow"><i data-lucide="arrow-right"></i></div>
+                        <div class="pipeline-step">
+                            <div class="step-icon" style="background:var(--amber-light);color:var(--amber);"><i
+                                    data-lucide="brain"></i></div>
+                            <div class="step-label">LSTM Model<br>Sequences</div>
+                        </div>
+                        <div class="pipeline-arrow"><i data-lucide="arrow-right"></i></div>
+                        <div class="pipeline-step">
+                            <div class="step-icon" style="background:var(--red-light);color:var(--red);"><i
+                                    data-lucide="trending-up"></i></div>
+                            <div class="step-label">Prediction<br>+ Alert</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ai-grid">
+                    <!-- Model Overview -->
+                    <div class="ai-card">
+                        <h3><i data-lucide="brain"></i> Model Overview</h3>
+                        <div class="info-row"><span class="key">Model Type</span><span class="val"
+                                id="ai-model-type">--</span></div>
+                        <div class="info-row"><span class="key">Framework</span><span class="val"
+                                id="ai-framework">--</span></div>
+                        <div class="info-row"><span class="key">Prediction Horizon</span><span class="val"
+                                id="ai-horizon">--</span></div>
+                        <div class="info-row"><span class="key">Sequence Length</span><span class="val"
+                                id="ai-seq-len">--</span></div>
+                        <div class="info-row"><span class="key">Optimizer</span><span class="val"
+                                id="ai-optimizer">--</span></div>
+                        <div class="info-row"><span class="key">Loss Function</span><span class="val"
+                                id="ai-loss">--</span></div>
+                    </div>
+                    <!-- Architecture -->
+                    <div class="ai-card">
+                        <h3><i data-lucide="layers"></i> Neural Network Architecture</h3>
+                        <div id="ai-architecture"></div>
+                    </div>
+                    <!-- Inputs -->
+                    <div class="ai-card">
+                        <h3><i data-lucide="log-in"></i> Input Features</h3>
+                        <div id="ai-inputs"></div>
+                        <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid #f1f5f9;">
+                            <div class="info-row"><span class="key">Output</span><span class="val"
+                                    id="ai-output">--</span></div>
+                        </div>
+                    </div>
+                    <!-- Training -->
+                    <div class="ai-card">
+                        <h3><i data-lucide="target"></i> Training Details</h3>
+                        <div class="info-row"><span class="key">Training Data</span><span class="val"
+                                id="ai-train-rows">--</span></div>
+                        <div class="info-row"><span class="key">Epochs</span><span class="val" id="ai-epochs">--</span>
+                        </div>
+                        <div class="info-row"><span class="key">Data Retention</span><span class="val"
+                                id="ai-retention">--</span></div>
+                        <div class="info-row"><span class="key">Model Status</span><span class="val"
+                                id="ai-model-status">--</span></div>
+                        <div class="info-row"><span class="key">Scaler Status</span><span class="val"
+                                id="ai-scaler-status">--</span></div>
+                    </div>
+                </div>
+
+                <!-- AI Prediction Chart: Actual vs Predicted -->
+                <div class="ai-card ai-card-full" style="margin-bottom:1.25rem;">
+                    <h3><i data-lucide="chart-spline"></i> AI Prediction Accuracy — Actual vs Predicted Current</h3>
+                    <div class="ai-chart-wrap"><canvas id="chart-ai-prediction"></canvas></div>
+                </div>
+
+                <!-- Prediction Error Chart -->
+                <div class="ai-grid">
+                    <div class="ai-card">
+                        <h3><i data-lucide="diff"></i> Prediction Error (Δ)</h3>
+                        <div class="ai-chart-wrap"><canvas id="chart-ai-error"></canvas></div>
+                    </div>
+                    <div class="ai-card">
+                        <h3><i data-lucide="gauge"></i> Live System Statistics</h3>
+                        <div class="stat-mini-grid">
+                            <div class="stat-mini">
+                                <div class="num" style="color:var(--blue);" id="ai-total-readings">0</div>
+                                <div class="lbl">Total Readings</div>
+                            </div>
+                            <div class="stat-mini">
+                                <div class="num" style="color:var(--green);" id="ai-seq-fill">0/12</div>
+                                <div class="lbl">Seq. Buffer</div>
+                            </div>
+                            <div class="stat-mini">
+                                <div class="num" style="color:var(--amber);">2s</div>
+                                <div class="lbl">Ingestion Rate</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+
+            <!-- ═══ ENERGY ANALYTICS ═══ -->
+            <div class="page" id="page-energy-analytics">
+
+                <!-- Hidden placeholders for forecast JS (cards removed, but JS still references these IDs) -->
+                <div style="display:none;">
+                    <span id="forecast-status"></span>
+                    <span id="fc-actual-kwh-today"></span><span id="fc-actual-units-today"></span><span
+                        id="fc-actual-bill-today"></span>
+                    <span id="fc-actual-kwh-30d"></span><span id="fc-actual-units-30d"></span><span
+                        id="fc-actual-bill-30d"></span>
+                    <span id="fc-1h-kw"></span><span id="fc-1h-kwh"></span><span id="fc-1h-unit"></span><span
+                        id="fc-1h-bill"></span>
+                    <span id="fc-24h-kw"></span><span id="fc-24h-kwh"></span><span id="fc-24h-unit"></span><span
+                        id="fc-24h-bill"></span>
+                    <span id="fc-7d-kw"></span><span id="fc-7d-kwh"></span><span id="fc-7d-unit"></span><span
+                        id="fc-7d-bill"></span>
+                </div>
+
+                <!-- ═══ CHARTS SECTION ═══ -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem;">
+
+                    <!-- Chart 1: Real-Time Power Consumption -->
+                    <div class="chart-card"
+                        style="background:var(--card);border-radius:16px;padding:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                        <h3 style="margin:0 0 1rem 0;font-size:0.95rem;"><i data-lucide="activity"
+                                style="color:var(--blue);"></i> Real-Time Power Consumption (W)</h3>
+                        <div style="position:relative;height:220px;"><canvas id="ea-chart-power"></canvas></div>
+                    </div>
+
+                    <!-- Chart 2: Hourly Energy Consumption (Bar) -->
+                    <div class="chart-card"
+                        style="background:var(--card);border-radius:16px;padding:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                        <h3 style="margin:0 0 1rem 0;font-size:0.95rem;"><i data-lucide="bar-chart-3"
+                                style="color:var(--green);"></i> Hourly Energy Breakdown (Wh)</h3>
+                        <div style="position:relative;height:220px;"><canvas id="ea-chart-hourly"></canvas></div>
+                    </div>
+
+                    <!-- Chart 3: Actual vs AI Predicted -->
+                    <div class="chart-card"
+                        style="background:var(--card);border-radius:16px;padding:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.08);grid-column:1/-1;">
+                        <h3 style="margin:0 0 1rem 0;font-size:0.95rem;"><i data-lucide="git-compare"
+                                style="color:var(--purple);"></i> Actual vs AI Predicted Power (W)</h3>
+                        <div style="position:relative;height:250px;"><canvas id="ea-chart-compare"></canvas></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ═══ HISTORICAL DATA ═══ -->
+            <div class="page" id="page-history">
+                <!-- Stats Row -->
+                <div class="hist-stats-row">
+                    <div class="hist-stat-card">
+                        <div class="hs-val" style="color:var(--blue);" id="hs-total-readings">0</div>
+                        <div class="hs-label">Total Readings</div>
+                    </div>
+                    <div class="hist-stat-card">
+                        <div class="hs-val" style="color:var(--green);" id="hs-avg-voltage">--</div>
+                        <div class="hs-label">Avg Voltage</div>
+                    </div>
+                    <div class="hist-stat-card">
+                        <div class="hs-val" style="color:var(--amber);" id="hs-avg-current">--</div>
+                        <div class="hs-label">Avg Current</div>
+                    </div>
+                    <div class="hist-stat-card">
+                        <div class="hs-val" style="color:var(--purple);" id="hs-time-range">--</div>
+                        <div class="hs-label">Time Span</div>
+                    </div>
+                </div>
+
+                <!-- Combined Overview -->
+                <div class="history-panel" style="margin-top:1.25rem;">
+                    <div class="history-header">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <h3><i data-lucide="chart-no-axes-combined"></i> Combined Overview</h3>
+                            <div class="retention-badge"><i data-lucide="database" style="width:12px;height:12px;"></i>
+                                15-Day Retention</div>
+                        </div>
+                        <div class="range-tabs" id="range-tabs">
+                            <button class="range-tab active" data-range="1h">1H</button>
+                            <button class="range-tab" data-range="6h">6H</button>
+                            <button class="range-tab" data-range="24h">24H</button>
+                            <button class="range-tab" data-range="7d">7D</button>
+                            <button class="range-tab" data-range="15d">15D</button>
+                        </div>
+                    </div>
+                    <div class="history-canvas-wrap"><canvas id="chart-history"></canvas></div>
+                </div>
+
+                <!-- Individual Charts -->
+                <div class="hist-individual-grid">
+                    <div class="hist-ind-card">
+                        <h4><i data-lucide="zap" style="color:var(--blue)"></i> Voltage History</h4>
+                        <div class="hist-ind-chart"><canvas id="hist-voltage"></canvas></div>
+                    </div>
+                    <div class="hist-ind-card">
+                        <h4><i data-lucide="git-compare" style="color:var(--green)"></i> Current — Actual vs
+                            Predicted
+                        </h4>
+                        <div class="hist-ind-chart"><canvas id="hist-current"></canvas></div>
+                    </div>
+                    <div class="hist-ind-card">
+                        <h4><i data-lucide="thermometer" style="color:var(--amber)"></i> Temperature History</h4>
+                        <div class="hist-ind-chart"><canvas id="hist-temp"></canvas></div>
+                    </div>
+                    <div class="hist-ind-card">
+                        <h4><i data-lucide="droplets" style="color:var(--purple)"></i> Humidity History</h4>
+                        <div class="hist-ind-chart"><canvas id="hist-humidity"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        /* ═══ SIDEBAR NAV ═══ */
+        var navItems = document.querySelectorAll('.nav-item');
+        var pages = document.querySelectorAll('.page');
+        var pageTitleEl = document.getElementById('page-title');
+        var pageTitles = { 'dashboard': 'Dashboard', 'ai-insights': 'AI Insights', 'demand-response': 'Energy Analytics', 'energy-analytics': 'Energy Analytics', 'history': 'Historical Data' };
+        var pageIcons = { 'dashboard': 'layout-dashboard', 'ai-insights': 'brain', 'demand-response': 'line-chart', 'energy-analytics': 'line-chart', 'history': 'chart-line' };
+
+        for (var n = 0; n < navItems.length; n++) {
+            navItems[n].addEventListener('click', function () {
+                var target = this.getAttribute('data-page');
+                for (var i = 0; i < navItems.length; i++) navItems[i].classList.remove('active');
+                for (var j = 0; j < pages.length; j++) pages[j].classList.remove('active');
+                this.classList.add('active');
+                document.getElementById('page-' + target).classList.add('active');
+                pageTitleEl.innerHTML = '<i data-lucide="' + pageIcons[target] + '" style="width:20px;height:20px;"></i> ' + pageTitles[target];
+                lucide.createIcons();
+                if (target === 'ai-insights') fetchAIInfo();
+                if (target === 'history') fetchHistory(currentRange);
+                if (target === 'demand-response' || target === 'energy-analytics') fetchAlerts();
+            });
+        }
+
+        /* ═══ TOOLTIP CONFIG ═══ */
+        var tooltipConfig = {
+            enabled: true, mode: 'index', intersect: false,
+            backgroundColor: 'rgba(15,23,42,0.96)',
+            titleColor: '#f8fafc',
+            bodyColor: '#cbd5e1',
+            borderColor: 'rgba(59,130,246,0.3)',
+            borderWidth: 1,
+            padding: { top: 12, bottom: 12, left: 16, right: 16 },
+            cornerRadius: 12,
+            titleFont: { size: 13, weight: '700', family: 'Inter' },
+            bodyFont: { size: 12, family: 'Inter' },
+            titleMarginBottom: 8,
+            displayColors: true,
+            boxWidth: 10, boxHeight: 10,
+            boxPadding: 6,
+            usePointStyle: true,
+            caretSize: 6,
+            caretPadding: 8,
+            callbacks: {
+                title: function (items) {
+                    return '🕒  ' + items[0].label;
+                },
+                label: function (ctx) {
+                    var label = ctx.dataset.label || '';
+                    var val = ctx.parsed.y;
+                    if (val !== null && val !== undefined) { return '  ' + label + ':  ' + val.toFixed(2); }
+                    return '  ' + label + ':  --';
+                },
+                afterBody: function (items) {
+                    if (items.length > 1) {
+                        var actual = items[0].parsed.y;
+                        var predicted = items[1].parsed.y;
+                        if (actual !== null && predicted !== null && predicted !== undefined) {
+                            var diff = actual - predicted;
+                            var sign = diff >= 0 ? '+' : '';
+                            return ['', '  Δ Error:  ' + sign + diff.toFixed(3)];
+                        }
+                    }
+                    return [];
+                }
+            }
+        };
+
+        var crosshairPlugin = {
+            id: 'crosshair',
+            afterDraw: function (chart) {
+                if (chart.tooltip && chart.tooltip._active && chart.tooltip._active.length) {
+                    var activePoint = chart.tooltip._active[0];
+                    var x = activePoint.element.x;
+                    var y = activePoint.element.y;
+                    var xAxis = chart.scales.x;
+                    var yAxis = chart.scales.y;
+                    var ctx = chart.ctx;
+                    ctx.save();
+                    // Vertical crosshair
+                    ctx.beginPath();
+                    ctx.moveTo(x, yAxis.top);
+                    ctx.lineTo(x, yAxis.bottom);
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = 'rgba(59,130,246,0.35)';
+                    ctx.setLineDash([4, 3]);
+                    ctx.stroke();
+                    // Horizontal crosshair
+                    ctx.beginPath();
+                    ctx.moveTo(xAxis.left, y);
+                    ctx.lineTo(xAxis.right, y);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+                    ctx.setLineDash([3, 3]);
+                    ctx.stroke();
+                    // Glow dot at intersection
+                    ctx.beginPath();
+                    ctx.arc(x, y, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(59,130,246,0.15)';
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+                    ctx.fillStyle = activePoint.element.options.borderColor || '#3b82f6';
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([]);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        };
+
+        /* ═══ CHART BUILDER ═══ */
+        var MAX_LIVE = 60;
+
+        function mkCfg(label, borderColor, bgColor, unitSuffix) {
+            return {
+                type: 'line',
+                data: {
+                    labels: [], datasets: [{
+                        label: label, data: [], borderColor: borderColor, backgroundColor: bgColor,
+                        fill: true, tension: 0.4, borderWidth: 2,
+                        pointRadius: 0,
+                        pointHitRadius: 20,
+                        pointHoverRadius: 7,
+                        pointHoverBackgroundColor: borderColor,
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2.5
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false },
+                    hover: { mode: 'nearest', axis: 'x', intersect: false },
+                    plugins: {
+                        legend: { display: false }, tooltip: Object.assign({}, tooltipConfig, {
+                            callbacks: {
+                                title: tooltipConfig.callbacks.title,
+                                label: function (ctx) { return '  ' + ctx.dataset.label + ':  ' + ctx.parsed.y.toFixed(2) + (unitSuffix || ''); }
+                            }
+                        })
+                    },
+                    scales: { x: { display: true, ticks: { maxTicksLimit: 6, font: { size: 10 }, color: '#94a3b8' }, grid: { display: false } }, y: { ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' } } }
+                },
+                plugins: [crosshairPlugin]
+            };
+        }
+
+        var vChart = new Chart(document.getElementById('chart-voltage'), mkCfg('Voltage', '#3b82f6', 'rgba(59,130,246,0.08)', ' V'));
+
+        var cCfg = mkCfg('Actual', '#10b981', 'rgba(16,185,129,0.08)', ' A');
+        cCfg.data.datasets.push({ label: 'Predicted', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.06)', fill: true, tension: 0.4, borderWidth: 2, borderDash: [5, 3], pointRadius: 0, pointHitRadius: 20, pointHoverRadius: 7, pointHoverBackgroundColor: '#ef4444', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2.5 });
+        cCfg.options.plugins.legend = { display: true, position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', font: { size: 10 } } };
+        cCfg.options.plugins.tooltip = Object.assign({}, tooltipConfig);
+        var cChart = new Chart(document.getElementById('chart-current'), cCfg);
+
+        var tChart = new Chart(document.getElementById('chart-temp'), mkCfg('Temperature', '#f59e0b', 'rgba(245,158,11,0.08)', ' °C'));
+        var hChart = new Chart(document.getElementById('chart-humidity'), mkCfg('Humidity', '#8b5cf6', 'rgba(139,92,246,0.08)', ' %'));
+
+        /* ═══ HISTORY CHARTS ═══ */
+        function mkHistCfg(datasets) {
+            return {
+                type: 'line', data: { labels: [], datasets: datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false },
+                    hover: { mode: 'nearest', axis: 'x', intersect: false },
+                    plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', font: { size: 11, family: 'Inter' }, padding: 16 } }, tooltip: tooltipConfig },
+                    scales: {
+                        x: { ticks: { maxTicksLimit: 12, font: { size: 10 }, color: '#94a3b8' }, grid: { display: false } },
+                        y: { ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9', drawBorder: false } }
+                    }
+                },
+                plugins: [crosshairPlugin]
+            };
+        }
+
+        // Combined overview
+        var histChart = new Chart(document.getElementById('chart-history'), mkHistCfg([
+            { label: 'Voltage (V)', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.06)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6 },
+            { label: 'Current (A)', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.06)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6 },
+            { label: 'Temp (°C)', data: [], borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.06)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6 },
+            { label: 'Humidity (%)', data: [], borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.06)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6 },
+            { label: 'Predicted (A)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.04)', fill: false, tension: 0.3, borderWidth: 2, borderDash: [5, 3], pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6 }
+        ]));
+
+        // Individual charts
+        var histVoltChart = new Chart(document.getElementById('hist-voltage'), mkHistCfg([
+            { label: 'Voltage (V)', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.12)', fill: true, tension: 0.35, borderWidth: 2.5, pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6, pointHoverBackgroundColor: '#3b82f6' }
+        ]));
+        var histCurrChart = new Chart(document.getElementById('hist-current'), mkHistCfg([
+            { label: 'Actual (A)', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', fill: true, tension: 0.35, borderWidth: 2.5, pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6, pointHoverBackgroundColor: '#10b981' },
+            { label: 'Predicted (A)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.06)', fill: true, tension: 0.35, borderWidth: 2, borderDash: [5, 3], pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6, pointHoverBackgroundColor: '#ef4444' }
+        ]));
+        var histTempChart = new Chart(document.getElementById('hist-temp'), mkHistCfg([
+            { label: 'Temperature (°C)', data: [], borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.12)', fill: true, tension: 0.35, borderWidth: 2.5, pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6, pointHoverBackgroundColor: '#f59e0b' }
+        ]));
+        var histHumChart = new Chart(document.getElementById('hist-humidity'), mkHistCfg([
+            { label: 'Humidity (%)', data: [], borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.12)', fill: true, tension: 0.35, borderWidth: 2.5, pointRadius: 0, pointHitRadius: 15, pointHoverRadius: 6, pointHoverBackgroundColor: '#8b5cf6' }
+        ]));
+
+        /* ═══ AI PREDICTION CHARTS ═══ */
+        var aiPredChart = new Chart(document.getElementById('chart-ai-prediction'), {
+            type: 'line',
+            data: {
+                labels: [], datasets: [
+                    { label: 'Actual Current', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#10b981' },
+                    { label: 'AI Predicted', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', fill: true, tension: 0.4, borderWidth: 2, borderDash: [6, 3], pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#ef4444' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', font: { size: 11 } } }, tooltip: Object.assign({}, tooltipConfig, { callbacks: { label: function (ctx) { return ' ' + ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(3) + ' A'; } } }) },
+                scales: { x: { ticks: { maxTicksLimit: 8, font: { size: 10 }, color: '#94a3b8' }, grid: { display: false } }, y: { title: { display: true, text: 'Current (A)', font: { size: 11 } }, ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' } } }
+            },
+            plugins: [crosshairPlugin]
+        });
+
+        var aiErrorChart = new Chart(document.getElementById('chart-ai-error'), {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Error (Δ)', data: [], backgroundColor: [], borderRadius: 4, borderSkipped: false }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false }, tooltip: Object.assign({}, tooltipConfig, { callbacks: { label: function (ctx) { return ' Error: ' + ctx.parsed.y.toFixed(4) + ' A'; } } }) },
+                scales: { x: { ticks: { maxTicksLimit: 8, font: { size: 10 }, color: '#94a3b8' }, grid: { display: false } }, y: { title: { display: true, text: 'Δ (A)', font: { size: 11 } }, ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' } } }
+            }
+        });
+
+        /* ═══ PUSH LIVE DATA ═══ */
+        function pushLive(d) {
+            var t = new Date().toLocaleTimeString();
+            function push(chart, val) {
+                chart.data.labels.push(t); chart.data.datasets[0].data.push(val);
+                if (chart.data.labels.length > MAX_LIVE) { chart.data.labels.shift(); chart.data.datasets[0].data.shift(); }
+                chart.update();
+            }
+            push(vChart, d.voltage); push(tChart, d.temperature); push(hChart, d.humidity);
+            cChart.data.labels.push(t);
+            cChart.data.datasets[0].data.push(d.current);
+            cChart.data.datasets[1].data.push(d.predicted_current || null);
+            if (cChart.data.labels.length > MAX_LIVE) { cChart.data.labels.shift(); cChart.data.datasets[0].data.shift(); cChart.data.datasets[1].data.shift(); }
+            cChart.update();
+
+            // Also push to AI prediction charts
+            aiPredChart.data.labels.push(t);
+            aiPredChart.data.datasets[0].data.push(d.current);
+            aiPredChart.data.datasets[1].data.push(d.predicted_current || null);
+            if (aiPredChart.data.labels.length > MAX_LIVE) { aiPredChart.data.labels.shift(); aiPredChart.data.datasets[0].data.shift(); aiPredChart.data.datasets[1].data.shift(); }
+            aiPredChart.update();
+
+            // Error chart
+            if (d.predicted_current) {
+                var err = d.current - d.predicted_current;
+                aiErrorChart.data.labels.push(t);
+                aiErrorChart.data.datasets[0].data.push(err);
+                aiErrorChart.data.datasets[0].backgroundColor.push(err >= 0 ? 'rgba(16,185,129,0.6)' : 'rgba(239,68,68,0.6)');
+                if (aiErrorChart.data.labels.length > MAX_LIVE) { aiErrorChart.data.labels.shift(); aiErrorChart.data.datasets[0].data.shift(); aiErrorChart.data.datasets[0].backgroundColor.shift(); }
+                aiErrorChart.update();
+            }
+        }
+
+        /* ═══ FETCH LIVE ═══ */
+        async function fetchLive() {
+            try {
+                var r = await fetch('/api/data'); var d = await r.json();
+                document.getElementById('val-voltage').innerHTML = d.voltage.toFixed(1) + '<span class="unit">V</span>';
+                document.getElementById('val-current').innerHTML = d.current.toFixed(2) + '<span class="unit">A</span>';
+                document.getElementById('val-temp').innerHTML = d.temperature.toFixed(1) + '<span class="unit">°C</span>';
+                document.getElementById('val-humidity').innerHTML = d.humidity.toFixed(1) + '<span class="unit">%</span>';
+                document.getElementById('val-predicted').innerHTML = (d.predicted_current != null ? d.predicted_current.toFixed(2) : '--') + '<span class="unit">A</span>';
+                // Power
+                var pw = d.power || (d.voltage * d.current);
+                document.getElementById('val-power').innerHTML = pw.toFixed(1) + '<span class="unit">W</span>';
+
+                // Update demand response page values
+                updateDRPage(d);
+                var badge = document.getElementById('status-badge');
+                var sideStatus = document.getElementById('sidebar-status');
+                var sideDot = document.getElementById('sidebar-dot');
+                sideStatus.innerText = d.status; badge.innerText = d.status; badge.className = 'badge';
+                if (d.status.indexOf('WARNING') !== -1) { badge.classList.add('badge-danger'); sideDot.style.background = '#ef4444'; sideDot.style.boxShadow = '0 0 8px #ef4444'; }
+                else if (d.status.indexOf('Notice') !== -1) { badge.classList.add('badge-warning'); sideDot.style.background = '#f59e0b'; sideDot.style.boxShadow = '0 0 8px #f59e0b'; }
+                else if (d.status.indexOf('Waiting') !== -1 || d.status.indexOf('Collecting') !== -1) { badge.classList.add('badge-muted'); sideDot.style.background = '#94a3b8'; sideDot.style.boxShadow = '0 0 8px #94a3b8'; }
+                else { badge.classList.add('badge-success'); sideDot.style.background = '#4ade80'; sideDot.style.boxShadow = '0 0 8px #4ade80'; }
+                document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
+                pushLive(d);
+                // Update Energy Analytics charts
+                var pw = d.power || (d.voltage * d.current);
+                updateEnergyAnalyticsCharts(pw, d.predicted_current || 0, d.voltage);
+            } catch (e) {
+                document.getElementById('status-badge').innerText = 'Offline';
+                document.getElementById('status-badge').className = 'badge badge-danger';
+                document.getElementById('sidebar-status').innerText = 'Offline';
+            }
+        }
+
+        /* ═══ HISTORY ═══ */
+        var currentRange = '1h';
+        async function fetchHistory(range) {
+            try {
+                var r = await fetch('/api/history?range=' + range); var data = await r.json();
+                var labels = [], v = [], c = [], t = [], h = [], p = [];
+                var step = data.length > 500 ? Math.ceil(data.length / 500) : 1;
+                for (var i = 0; i < data.length; i += step) {
+                    var x = data[i];
+                    labels.push((range === '1h' || range === '6h') ? (x.timestamp || '').substring(11, 19) : (x.timestamp || '').substring(5, 16));
+                    v.push(x.voltage); c.push(x.current_val); t.push(x.temperature); h.push(x.humidity); p.push(x.predicted_current);
+                }
+                // Combined overview
+                histChart.data.labels = labels;
+                histChart.data.datasets[0].data = v; histChart.data.datasets[1].data = c;
+                histChart.data.datasets[2].data = t; histChart.data.datasets[3].data = h; histChart.data.datasets[4].data = p;
+                histChart.update();
+                // Individual charts
+                histVoltChart.data.labels = labels; histVoltChart.data.datasets[0].data = v; histVoltChart.update();
+                histCurrChart.data.labels = labels; histCurrChart.data.datasets[0].data = c; histCurrChart.data.datasets[1].data = p; histCurrChart.update();
+                histTempChart.data.labels = labels; histTempChart.data.datasets[0].data = t; histTempChart.update();
+                histHumChart.data.labels = labels; histHumChart.data.datasets[0].data = h; histHumChart.update();
+                // Stats
+                document.getElementById('hs-total-readings').innerText = data.length.toLocaleString();
+                if (v.length) {
+                    // Filter out 0V/0A readings (from power-off periods) for accurate avg
+                    var vNonZero = v.filter(function (x) { return x > 0; });
+                    var cNonZero = c.filter(function (x) { return x > 0; });
+                    var avgV = vNonZero.length ? vNonZero.reduce(function (a, b) { return a + b; }, 0) / vNonZero.length : 0;
+                    var avgC = cNonZero.length ? cNonZero.reduce(function (a, b) { return a + b; }, 0) / cNonZero.length : 0;
+                    document.getElementById('hs-avg-voltage').innerText = avgV.toFixed(1) + ' V';
+                    document.getElementById('hs-avg-current').innerText = avgC.toFixed(2) + ' A';
+                }
+                var rangeLabels = { '1h': '1 Hour', '6h': '6 Hours', '24h': '24 Hours', '7d': '7 Days', '15d': '15 Days' };
+                document.getElementById('hs-time-range').innerText = rangeLabels[range] || range;
+            } catch (e) { console.error('History error:', e); }
+        }
+        document.getElementById('range-tabs').addEventListener('click', function (e) {
+            if (e.target.classList.contains('range-tab')) {
+                var tabs = document.querySelectorAll('.range-tab');
+                for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+                e.target.classList.add('active');
+                currentRange = e.target.getAttribute('data-range');
+                fetchHistory(currentRange);
+            }
+        });
+
+        /* ═══ AI INFO ═══ */
+        var layerColors = { 'LSTM': '#3b82f6', 'Dropout': '#f59e0b', 'Dense': '#10b981' };
+        async function fetchAIInfo() {
+            try {
+                var r = await fetch('/api/ai-info'); var info = await r.json();
+                document.getElementById('ai-model-type').innerText = info.model_type;
+                document.getElementById('ai-framework').innerText = info.framework;
+                document.getElementById('ai-horizon').innerText = info.prediction_horizon;
+                document.getElementById('ai-seq-len').innerText = info.sequence_length + ' readings (1 hour)';
+                document.getElementById('ai-optimizer').innerText = info.optimizer;
+                document.getElementById('ai-loss').innerText = info.loss_function;
+                document.getElementById('ai-output').innerText = info.output;
+                document.getElementById('ai-train-rows').innerText = info.training_data_rows.toLocaleString() + ' rows';
+                document.getElementById('ai-epochs').innerText = info.training_epochs;
+                document.getElementById('ai-retention').innerText = info.retention_days + ' days';
+                document.getElementById('ai-model-status').innerHTML = info.model_loaded ? '<span style="color:#10b981">● Loaded</span>' : '<span style="color:#ef4444">● Not Loaded</span>';
+                document.getElementById('ai-scaler-status').innerHTML = info.scaler_loaded ? '<span style="color:#10b981">● Loaded</span>' : '<span style="color:#ef4444">● Not Loaded</span>';
+                document.getElementById('ai-total-readings').innerText = info.total_readings_stored.toLocaleString();
+                document.getElementById('ai-seq-fill').innerText = info.sequence_buffer_fill + ' / ' + info.sequence_length;
+                var archEl = document.getElementById('ai-architecture'); archEl.innerHTML = '';
+                for (var i = 0; i < info.architecture.length; i++) {
+                    var layer = info.architecture[i]; var color = layerColors[layer.layer] || '#64748b';
+                    var detail = '';
+                    if (layer.units) detail += layer.units + ' units';
+                    if (layer.rate) detail += 'Rate: ' + (layer.rate * 100) + '%';
+                    if (layer.return_sequences) detail += ', seq→';
+                    archEl.innerHTML += '<div class="arch-layer"><div class="layer-icon" style="background:' + color + ';">' + (i + 1) + '</div><div><div class="layer-name">' + layer.layer + '</div><div class="layer-detail">' + detail + '</div></div></div>';
+                }
+                var inEl = document.getElementById('ai-inputs'); inEl.innerHTML = '';
+                var fIcons = ['zap', 'droplets', 'thermometer'];
+                for (var j = 0; j < info.input_features.length; j++) {
+                    inEl.innerHTML += '<div class="info-row"><span class="key"><i data-lucide="' + fIcons[j] + '" style="width:14px;height:14px;display:inline;vertical-align:middle;margin-right:4px;"></i>Feature ' + (j + 1) + '</span><span class="val">' + info.input_features[j] + '</span></div>';
+                }
+                lucide.createIcons();
+            } catch (e) { console.error('AI info error:', e); }
+        }
+
+        /* ═══ ENERGY ANALYTICS ═══ */
+        function updateDRPage(d) {
+            // Replaced legacy Load Monitor with Energy Analytics layout
+        }
+
+        async function fetchAlerts() {
+            try {
+                var r = await fetch('/api/alerts'); var alerts = await r.json();
+                var tbody = document.getElementById('alert-tbody');
+                if (!alerts.length) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem;">No alerts yet — system is normal</td></tr>';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < alerts.length; i++) {
+                    var a = alerts[i];
+                    var sev = a.severity || 'info';
+                    html += '<tr>';
+                    html += '<td style="white-space:nowrap;font-size:0.75rem;">' + (a.timestamp || '--') + '</td>';
+                    html += '<td><span class="severity-badge severity-' + sev + '">' + sev + '</span></td>';
+                    html += '<td>' + (a.message || '') + '</td>';
+                    html += '<td style="font-size:0.75rem;color:var(--text-secondary);">' + (a.action || '') + '</td>';
+                    html += '</tr>';
+                }
+                tbody.innerHTML = html;
+            } catch (e) { console.error('Alert fetch error:', e); }
+        }
+
+        /* ═══ ENERGY FORECAST ═══ */
+        async function fetchEnergyForecast() {
+            try {
+                var r = await fetch('/api/energy-forecast');
+                var f = await r.json();
+
+                // ── Always update actual consumed (from DB), even before AI is ready ──
+                document.getElementById('fc-actual-kwh-today').innerText = (f.actual_kwh_today || 0).toFixed(4) + ' kWh';
+                document.getElementById('fc-actual-units-today').innerText = (f.actual_kwh_today || 0).toFixed(4);
+                document.getElementById('fc-actual-bill-today').innerText = '₹ ' + (f.actual_bill_today_inr || 0).toFixed(2);
+                document.getElementById('fc-actual-kwh-30d').innerText = (f.actual_kwh_30d || 0).toFixed(3) + ' kWh';
+                document.getElementById('fc-actual-units-30d').innerText = (f.actual_kwh_30d || 0).toFixed(3);
+                document.getElementById('fc-actual-bill-30d').innerText = '₹ ' + (f.actual_bill_30d_inr || 0).toFixed(2);
+
+                if (!f.ready) {
+                    document.getElementById('forecast-status').innerText =
+                        '⏳ Collecting sequence data for AI prediction... (' +
+                        (Math.round((f.predicted_current_A || 0) * 100) / 100) + 'A last sample)';
+                    return;
+                }
+                document.getElementById('forecast-status').innerText =
+                    '✅ AI LSTM prediction active — all values based on real sensor data';
+
+                // ── Future Predictions ──
+                // 1h
+                document.getElementById('fc-1h-kw').innerText = f.predicted_power_kW.toFixed(3) + ' kW';
+                document.getElementById('fc-1h-kwh').innerText = f.next_1h_kWh.toFixed(4) + ' kWh';
+                document.getElementById('fc-1h-unit').innerText = f.next_1h_units.toFixed(4);
+                document.getElementById('fc-1h-bill').innerText = '₹ ' + (f.bill_1h_inr || 0).toFixed(2);
+                // 24h
+                document.getElementById('fc-24h-kw').innerText = f.predicted_power_kW.toFixed(3) + ' kW';
+                document.getElementById('fc-24h-kwh').innerText = f.next_24h_kWh.toFixed(3) + ' kWh';
+                document.getElementById('fc-24h-unit').innerText = f.next_24h_units.toFixed(3);
+                document.getElementById('fc-24h-bill').innerText = '₹ ' + (f.bill_24h_inr || 0).toFixed(2);
+                // 30d
+                document.getElementById('fc-7d-kw').innerText = f.predicted_power_kW.toFixed(3) + ' kW';
+                document.getElementById('fc-7d-kwh').innerText = f.next_30d_kWh.toFixed(2) + ' kWh';
+                document.getElementById('fc-7d-unit').innerText = f.next_30d_units.toFixed(2);
+                document.getElementById('fc-7d-bill').innerText = '₹ ' + (f.bill_30d_inr || 0).toFixed(2);
+            } catch (e) { console.error('Forecast fetch error:', e); }
+        }
+
+        /* ═══ ENERGY ANALYTICS CHARTS ═══ */
+        // Chart 1: Real-Time Power Consumption (line)
+        var eaPowerCtx = document.getElementById('ea-chart-power').getContext('2d');
+        var eaPowerGrad = eaPowerCtx.createLinearGradient(0, 0, 0, 220);
+        eaPowerGrad.addColorStop(0, 'rgba(59,130,246,0.35)');
+        eaPowerGrad.addColorStop(1, 'rgba(59,130,246,0.02)');
+        var eaPowerChart = new Chart(eaPowerCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Power (W)',
+                    data: [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: eaPowerGrad,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.08)' } },
+                    y: { ticks: { color: '#94a3b8', callback: function (v) { return v.toFixed(1) + ' W'; }, font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.08)' }, beginAtZero: true }
+                },
+                plugins: { legend: { display: false } },
+                animation: { duration: 400 }
+            }
+        });
+
+        // Chart 2: Hourly Energy Consumption (bar)
+        var eaHourlyLabels = [];
+        var eaHourlyData = [];
+        var eaCurrentHour = new Date().getHours();
+        for (var hi = 0; hi < 24; hi++) {
+            eaHourlyLabels.push(hi.toString().padStart(2, '0') + ':00');
+            eaHourlyData.push(0);
+        }
+        var eaHourlyChart = new Chart(document.getElementById('ea-chart-hourly'), {
+            type: 'bar',
+            data: {
+                labels: eaHourlyLabels,
+                datasets: [{
+                    label: 'Energy (Wh)',
+                    data: eaHourlyData,
+                    backgroundColor: function (ctx) {
+                        var idx = ctx.dataIndex;
+                        if (idx === eaCurrentHour) return 'rgba(16,185,129,0.8)';
+                        if (idx < eaCurrentHour) return 'rgba(99,102,241,0.5)';
+                        return 'rgba(148,163,184,0.15)';
+                    },
+                    borderRadius: 4,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#94a3b8', maxTicksLimit: 12, font: { size: 9 } }, grid: { display: false } },
+                    y: { ticks: { color: '#94a3b8', callback: function (v) { return v.toFixed(1); }, font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.08)' }, beginAtZero: true }
+                },
+                plugins: { legend: { display: false } },
+                animation: { duration: 400 }
+            }
+        });
+
+        // Chart 3: Actual vs AI Predicted (dual line)
+        var eaCompareCtx = document.getElementById('ea-chart-compare').getContext('2d');
+        var eaCompareChart = new Chart(eaCompareCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Actual Power (W)',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16,185,129,0.08)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'AI Predicted (W)',
+                        data: [],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245,158,11,0.08)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        borderDash: [6, 3],
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#94a3b8', maxTicksLimit: 10, font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.08)' } },
+                    y: { ticks: { color: '#94a3b8', callback: function (v) { return v.toFixed(1) + ' W'; }, font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.08)' }, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { labels: { color: '#94a3b8', font: { size: 11 }, usePointStyle: true, pointStyle: 'line' } }
+                },
+                animation: { duration: 400 }
+            }
+        });
+
+        // ── Push live data into energy analytics charts ──
+        var EA_MAX_POINTS = 60;
+        function updateEnergyAnalyticsCharts(powerW, predictedCurrentA, voltage) {
+            var now = new Date();
+            var timeLabel = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+            var predictedPowerW = (predictedCurrentA || 0) * (voltage || 220);
+
+            // Power chart
+            eaPowerChart.data.labels.push(timeLabel);
+            eaPowerChart.data.datasets[0].data.push(powerW);
+            if (eaPowerChart.data.labels.length > EA_MAX_POINTS) {
+                eaPowerChart.data.labels.shift();
+                eaPowerChart.data.datasets[0].data.shift();
+            }
+            eaPowerChart.update('none');
+
+            // Hourly chart — accumulate Wh for current hour
+            var h = now.getHours();
+            eaCurrentHour = h;
+            eaHourlyData[h] += (powerW / 3600) * 2; // approx Wh contribution per 2s interval
+            eaHourlyChart.data.datasets[0].data = eaHourlyData.slice();
+            eaHourlyChart.update('none');
+
+            // Comparison chart
+            eaCompareChart.data.labels.push(timeLabel);
+            eaCompareChart.data.datasets[0].data.push(powerW);
+            eaCompareChart.data.datasets[1].data.push(predictedPowerW);
+            if (eaCompareChart.data.labels.length > EA_MAX_POINTS) {
+                eaCompareChart.data.labels.shift();
+                eaCompareChart.data.datasets[0].data.shift();
+                eaCompareChart.data.datasets[1].data.shift();
+            }
+            eaCompareChart.update('none');
+        }
+
+        /* ═══ START ═══ */
+        setInterval(fetchLive, 2000);
+        fetchLive();
+        fetchHistory(currentRange);
+        setInterval(function () { fetchHistory(currentRange); }, 30000);
+        setInterval(fetchAlerts, 10000);
+        setInterval(fetchEnergyForecast, 10000);
+        fetchEnergyForecast();
+
+        /* ═══ SMART CONTEXTUAL FORECAST ═══ */
+        var sfChart = null;
+
+        async function fetchSmartForecast() {
+            try {
+                var r = await fetch('/api/smart-forecast');
+                var f = await r.json();
+
+                // Update condition badge (only visible on AI Insights page)
+                var badge = document.getElementById('sf-condition-badge');
+                if (badge) {
+                    badge.innerText = f.condition;
+                    badge.style.background = f.color + '22';
+                    badge.style.border = '1px solid ' + f.color + '66';
+                    badge.style.color = f.color;
+                }
+                var sfDetail = document.getElementById('sf-condition-detail');
+                if (sfDetail) sfDetail.innerText = f.condition_detail;
+                var sfLoad = document.getElementById('sf-load-type');
+                if (sfLoad) sfLoad.innerText = 'Predicted Load Type: ' + f.load_type;
+                var sfTemp = document.getElementById('sf-temp');
+                if (sfTemp) sfTemp.innerText = f.temperature.toFixed(1) + ' °C';
+                var sfHum = document.getElementById('sf-hum');
+                if (sfHum) sfHum.innerText = f.humidity.toFixed(1) + ' %';
+                var sfVolt = document.getElementById('sf-volt');
+                if (sfVolt) sfVolt.innerText = f.voltage.toFixed(1) + ' V';
+                var sfMult = document.getElementById('sf-mult');
+                if (sfMult) sfMult.innerText = f.base_multiplier.toFixed(1) + 'x';
+                var sfPeak = document.getElementById('sf-peak-kw');
+                if (sfPeak) sfPeak.innerText = f.peak_kw.toFixed(3) + ' kW';
+                var sfAvg = document.getElementById('sf-avg-kw');
+                if (sfAvg) sfAvg.innerText = f.avg_kw.toFixed(3) + ' kW';
+                var sfKwh = document.getElementById('sf-total-kwh');
+                if (sfKwh) sfKwh.innerText = f.total_24h_kwh.toFixed(3) + ' kWh';
+                var sfUnits = document.getElementById('sf-total-units');
+                if (sfUnits) sfUnits.innerText = f.total_24h_units.toFixed(3) + ' Units';
+                var sfBill = document.getElementById('sf-total-bill');
+                if (sfBill) sfBill.innerText = '₹ ' + f.total_24h_bill.toFixed(2);
+
+                // ── Always update Dashboard cards & strip ──
+                var kwh_per_hr = f.avg_kw;
+                var el;
+                el = document.getElementById('dash-fc-kwh'); if (el) el.innerText = kwh_per_hr.toFixed(4) + ' kWh';
+                el = document.getElementById('dash-fc-units'); if (el) el.innerText = f.total_24h_units.toFixed(3) + ' Units';
+                el = document.getElementById('dash-fc-bill'); if (el) el.innerText = '₹\u00a0' + f.total_24h_bill.toFixed(2);
+                el = document.getElementById('dash-sf-1h'); if (el) el.innerText = kwh_per_hr.toFixed(4) + ' kWh';
+                el = document.getElementById('dash-sf-24h'); if (el) el.innerText = f.total_24h_kwh.toFixed(3) + ' kWh';
+                el = document.getElementById('dash-sf-30d-bill'); if (el) el.innerText = '₹\u00a0' + (f.total_24h_bill * 30).toFixed(0);
+                el = document.getElementById('dash-sf-cond'); if (el) el.innerText = f.condition;
+
+
+                // Chart (only on AI Insights page)
+                var ctxEl = document.getElementById('chart-smart-forecast');
+                if (ctxEl) {
+                    var ctx = ctxEl.getContext('2d');
+                    var grad = ctx.createLinearGradient(0, 0, 0, 220);
+                    grad.addColorStop(0, f.color + '55');
+                    grad.addColorStop(1, f.color + '00');
+
+                    if (sfChart) {
+                        sfChart.data.labels = f.labels;
+                        sfChart.data.datasets[0].data = f.kw_values;
+                        sfChart.data.datasets[0].borderColor = f.color;
+                        sfChart.data.datasets[0].backgroundColor = grad;
+                        sfChart.update('none');
+                    } else {
+                        sfChart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: f.labels,
+                                datasets: [{
+                                    label: 'Predicted kW',
+                                    data: f.kw_values,
+                                    borderColor: f.color,
+                                    backgroundColor: grad,
+                                    borderWidth: 2.5,
+                                    fill: true,
+                                    tension: 0.45,
+                                    pointRadius: 2,
+                                    pointHoverRadius: 6,
+                                    pointBackgroundColor: f.color,
+                                }]
+                            },
+                            options: {
+                                responsive: true, maintainAspectRatio: false,
+                                animation: { duration: 600 },
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        backgroundColor: 'rgba(15,23,42,0.95)',
+                                        titleColor: '#f8fafc', bodyColor: '#cbd5e1',
+                                        borderColor: 'rgba(99,102,241,0.4)', borderWidth: 1,
+                                        padding: { top: 10, bottom: 10, left: 14, right: 14 },
+                                        cornerRadius: 10,
+                                        callbacks: {
+                                            label: function (ctx) {
+                                                var kw = ctx.parsed.y;
+                                                var unit = kw;
+                                                var bill = (unit * 8).toFixed(2);
+                                                return [
+                                                    '  Power: ' + kw.toFixed(3) + ' kW',
+                                                    '  Energy: ' + unit.toFixed(4) + ' kWh = ' + unit.toFixed(4) + ' Unit',
+                                                    '  Est. Bill: ₹' + bill
+                                                ];
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        grid: { color: 'rgba(148,163,184,0.08)' },
+                                        ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 8 }
+                                    },
+                                    y: {
+                                        grid: { color: 'rgba(148,163,184,0.08)' },
+                                        ticks: {
+                                            color: '#64748b', font: { size: 10 },
+                                            callback: function (v) { return v.toFixed(3) + ' kW'; }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                } // end if (ctxEl)
+            } catch (e) { console.error('Smart forecast error:', e); }
+        }
+
+        setInterval(fetchSmartForecast, 15000);
+        fetchSmartForecast();
+    </script>
+
+
+</body>
+
+</html>
