@@ -499,12 +499,22 @@ def _start_mqtt() -> None:
         print(f"[MQTT] Failed to start: {e}")
 
 
-# Start MQTT subscriber in background thread
-threading.Thread(target=_start_mqtt, daemon=True).start()
+# ── Lazy MQTT start (works with gunicorn fork) ───────────────────────────────
+_mqtt_started = False
+
+@app.before_request
+def _ensure_mqtt():
+    """Start MQTT on first HTTP request (inside gunicorn worker process)."""
+    global _mqtt_started
+    if not _mqtt_started:
+        _mqtt_started = True
+        threading.Thread(target=_start_mqtt, daemon=True).start()
 # ──────────────────────────────────────────────────────────────────────────────
 
 
 if __name__ == '__main__':
+    # Local dev mode: start MQTT immediately (no gunicorn fork issue)
+    threading.Thread(target=_start_mqtt, daemon=True).start()
     port = int(os.environ.get('PORT', 5050))
     print("=" * 50)
     print("  AI Smart Grid — Energy Monitoring System")

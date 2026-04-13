@@ -4,7 +4,7 @@
 #include <PubSubClient.h>
 
 // ══════════════════════════════════════════════════════════
-//  AI Smart Grid — ESP32 Firmware v6 (MQTT + HiveMQ Cloud)
+//  AI Smart Grid — ESP32 Firmware v6 (MQTT + HiveMQ Cloud) 1
 //  Prathamesh Sapate
 //  Sends sensor data via MQTT to HiveMQ Cloud broker
 //  Server (Flask on Render) subscribes to receive data
