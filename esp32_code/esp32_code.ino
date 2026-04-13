@@ -282,8 +282,8 @@ void loop() {
                     ",\"humidity\":" + String(humidity, 1) +
                     ",\"power\":" + String(power, 2) + "}";
 
-      // Publish to MQTT topic
-      if (mqttClient.publish(MQTT_TOPIC, json.c_str())) {
+      // Publish to MQTT topic (retain=true so Render gets latest data on reconnect)
+      if (mqttClient.publish(MQTT_TOPIC, json.c_str(), true)) {
         Serial.print("[MQTT] Published → ");
         Serial.println(json);
       } else {

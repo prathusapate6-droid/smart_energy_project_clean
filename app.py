@@ -469,8 +469,9 @@ def _start_mqtt() -> None:
     def on_connect(client, userdata, flags, rc, properties=None):
         if rc == 0:
             print(f"[MQTT] ✅ Connected to HiveMQ Cloud!")
-            client.subscribe(topic)
-            print(f"[MQTT] Subscribed to topic: {topic}")
+            # Re-subscribe on EVERY connect (important after reconnect!)
+            client.subscribe(topic, qos=1)
+            print(f"[MQTT] Subscribed to topic: {topic} (QoS 1)")
         else:
             print(f"[MQTT] ❌ Connection failed with code {rc}")
 
@@ -483,20 +484,41 @@ def _start_mqtt() -> None:
             print(f"[MQTT] Error parsing message: {e}")
 
     def on_disconnect(client, userdata, rc, properties=None):
-        print(f"[MQTT] Disconnected (rc={rc}). Will auto-reconnect...")
+        print(f"[MQTT] ⚠️ Disconnected (rc={rc}). Auto-reconnecting...")
 
     try:
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         client.username_pw_set(username, password)
         client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
+
+        # Enable auto-reconnect with backoff (1s min, 30s max)
+        client.reconnect_delay_set(min_delay=1, max_delay=30)
+
         client.on_connect = on_connect
         client.on_message = on_message
         client.on_disconnect = on_disconnect
+
         client.connect(broker, port, keepalive=60)
-        client.loop_start()  # Non-blocking background loop
+        client.loop_start()  # Non-blocking background loop with auto-reconnect
         print(f"[MQTT] Connecting to {broker}:{port}...")
+
+        # Keep this thread alive to maintain the MQTT client reference
+        import time
+        while True:
+            time.sleep(30)
+            if not client.is_connected():
+                print("[MQTT] ⚠️ Connection lost, attempting reconnect...")
+                try:
+                    client.reconnect()
+                except Exception as e:
+                    print(f"[MQTT] Reconnect failed: {e}")
+
     except Exception as e:
         print(f"[MQTT] Failed to start: {e}")
+        # Retry after 10 seconds
+        import time
+        time.sleep(10)
+        _start_mqtt()
 
 
 # ── Lazy MQTT start (works with gunicorn fork) ───────────────────────────────
